@@ -1,0 +1,70 @@
+---
+title: "UseRmd2CreateDoc"
+author: "Steven Sharp"
+date: "2023-05-14"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+### A Bulleted List
+
+* Item A
+* Item B
+  + Item B1
+  + Item B2
+  
+### Numbered List
+1. Item 1
+2. Item 2
+3. Item 3
+    + Item 3a
+    + Item 3b
+    
+### Bold and italics
+
+*italic*   **bold**
+
+_italic_   __bold__
+
+# Header 1
+## Header 2
+### Header 3
+#### Header 4
+
+### R code without showing code
+```{r cars, echo=FALSE}
+summary(cars)
+```
+
+### R code showing 
+```{r cars2, echo=TRUE}
+summary(cars)
+```
+
+
+## TABLE
+table with 3 columns
+
+| Left-aligned | Center-aligned | Right-aligned |
+| :---         |     :---:      |          ---: |
+| First row    | R1 C2          | R1 C3         |
+| Second row   | R2 C2          | R2 C3         |
+| Third row    | R3 C2          | R3 C3         |
+
+### Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+### Session Info
+
+```{r sessionInfo, echo=TRUE}
+utils::sessionInfo()
+```
