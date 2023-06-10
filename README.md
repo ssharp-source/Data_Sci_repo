@@ -1,7 +1,7 @@
 # Data_Sci_repo
 
 ## What is this place
-this is a repo where I organized my files for my MSEE work in data science as a field from University of Colorado at Bolder (online)
+This is a repo where I organized my files for my MSEE work in data science as a field from University of Colorado at Bolder (online)
 
 ## why?
 Two reasons, easy of access of my work (for grading ) and as a reference later in life
