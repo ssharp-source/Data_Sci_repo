@@ -1,0 +1,232 @@
+---
+title: "NYPD_Shooting_Case_Study"
+author: "Steven Sharp"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Data Science as a Field NYPD shooting case study project
+
+
+
+```{r Import_libs}
+library(tidyverse)
+library(lubridate)
+library(usmap) #import the package
+library(ggplot2) #use ggplot2 to add layer for visualization
+library(leaflet)
+
+```
+
+
+## Data Sources 
+### Importing data 
+```{r GetData}
+url_in <- str_c("https://data.cityofnewyork.us/api/views/833y-fsy8/rows.csv?accessType=DOWNLOAD")
+NYPD_shootings <- read.csv(url_in[1])
+
+```
+
+
+ 
+
+## Tidy up the data
+### remove unwanted data
+
+I what to remove data older than 10 years. I want to look at location and time of day as factors to investigate. I will group locations by Borough and times. I will do further analysis to see if their are trends in the data
+
+
+```{r tidy}
+
+
+# Remove missing values from NYPD_shootings
+NYPD_shootings <- na.omit(NYPD_shootings)
+
+#change date object
+NYPD_shootings$OCCUR_DATE <- as.Date(NYPD_shootings$OCCUR_DATE, format = "%m/%d/%Y")
+
+#look at the last 10 years
+NYPD_shootings <- NYPD_shootings %>% filter(OCCUR_DATE > ymd("2012-12-31"))
+
+
+```
+
+
+
+review data 
+```{r inspect}
+
+head(NYPD_shootings,5)
+```
+
+### Group data 
+I want to see if there are trends in the locations or times (or both). So make two variables for day and night and filter those records with those attributes. I define day from 6am-6pm everything else as night and 
+
+```{r filter_group}
+
+
+NYPD_shootings_day <- NYPD_shootings %>% filter(OCCUR_TIME  >= "06:00:00" & OCCUR_TIME <= "17:59:59")
+
+NYPD_shootings_night <- NYPD_shootings %>% filter(OCCUR_TIME >= "18:00:00" & OCCUR_TIME <= "5:59:59")
+
+
+```
+
+## Show two different visualization
+inspecting data for trend or insight
+
+```{r graph data}
+
+
+
+library(leaflet)
+
+# Set the bounding box coordinates for New York City
+min_lat <- 40.5774
+max_lat <- 40.9176
+min_long <- -74.15
+max_long <- -73.7004
+
+# Create a leaflet map object centered around New York City
+map <- leaflet() %>%
+  setView(lng = mean(c(min_long, max_long)), lat = mean(c(min_lat, max_lat)), zoom = 11) %>%
+  addTiles()
+
+# Add markers for nighttime shootings
+map_night <- addCircleMarkers(map, data = NYPD_shootings_night, lng = ~Longitude, lat = ~Latitude,
+                              color = "black", radius = 0.05, fillOpacity = 0.01)
+
+# Add markers for daytime shootings
+map_day <- addCircleMarkers(map_night, data = NYPD_shootings_day, lng = ~Longitude, lat = ~Latitude,
+                            color = "blue", radius = 0.05, fillOpacity = 0.01)
+
+# Print the map
+map_day
+
+
+```
+
+
+From the above map it looks like I should group in Boroughs, and that night time shootings are more frequent.
+
+
+## Step 2
+### Ploting to compare day time and night time shootings
+```{r graph data2}
+
+# Combine the "Day" and "Night" datasets into a single dataframe
+stacked_data <- rbind(transform(NYPD_shootings_day, Period = "Day"), transform(NYPD_shootings_night, Period = "Night"))
+
+#  code for the stacked bar chart
+ggplot(data = stacked_data, aes(x = fct_rev(fct_infreq(BORO)), fill = Period)) +
+  geom_bar(color = "blue", position = "stack") +
+  ggtitle("Number of shootings in different BOROUGH") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  xlab("Borough") + ylab("Shooting Count") +
+  coord_flip() +
+  theme(legend.position = "top")
+
+
+```
+From the chart above it does look like night time shootings are more prevalent
+
+## Step 3 Model 
+lets looking to see if there is a trend to the data 
+
+```{r model}
+
+
+
+
+
+# Calculate the number of nighttime shootings by date
+nighttime_counts <- aggregate(OCCUR_TIME ~ OCCUR_DATE, data = NYPD_shootings_night, FUN = length)
+
+# Create a model using linear regression
+lm_model <- lm(OCCUR_TIME ~ OCCUR_DATE, data = nighttime_counts)
+trend_line <- data.frame(OCCUR_DATE = nighttime_counts$OCCUR_DATE,
+                         OCCUR_TIME = predict(lm_model))
+
+# Plot nighttime shootings with dates and trend line
+ggplot(nighttime_counts, aes(x = OCCUR_DATE, y = OCCUR_TIME)) +
+  geom_point(color = "black") +
+  geom_line(data = trend_line, aes(x = OCCUR_DATE, y = OCCUR_TIME), color = "red") +
+  scale_x_date(date_labels = " %Y", date_breaks = "1 year") +
+  labs(x = "Date", y = "Number of Night time Shootings",
+       title = "Nighttime Shootings over Time with Trend Line") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+summary(lm_model)
+
+# Calculate the number of daytime murders by date
+daytime_counts <- aggregate(OCCUR_TIME ~ OCCUR_DATE, data = NYPD_shootings_day, FUN = length)
+
+# Create a model using linear regression
+lm_model2 <- lm(OCCUR_TIME ~ OCCUR_DATE, data = daytime_counts)
+trend_line2 <- data.frame(OCCUR_DATE = nighttime_counts$OCCUR_DATE,
+                         OCCUR_TIME = predict(lm_model))
+
+# Plot daytime shootings with dates and trend line
+ggplot(daytime_counts, aes(x = OCCUR_DATE, y = OCCUR_TIME)) +
+  geom_point(color = "blue") +
+  geom_line(data = trend_line2, aes(x = OCCUR_DATE, y = OCCUR_TIME), color = "red") +
+  scale_x_date(date_labels = "%b %Y", date_breaks = "12 month") +
+  labs(x = "Date", y = "Number of Day time Shootings",
+       title = "Daytime Shootingss over Time with Trend Line") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+summary(lm_model2)
+
+```
+```{r analisys}
+# Line 1 parameters
+slope1 <- 2.183e-04
+intercept1 <- -1.494
+
+# Line 2 parameters
+slope2 <- 1.403e-04
+intercept2 <- -5.745e-01
+
+# Calculate the x-coordinate of the intercept
+intercept_x <- (intercept2 - intercept1) / (slope1 - slope2)
+
+# Calculate the y-coordinate of the intercept
+intercept_y <- slope1 * intercept_x + intercept1
+
+# Create a plot
+plot(x = c(11700, 11810), y = c(-10, 10), type = "n", xlab = "X", ylab = "Y")
+
+# Plot line 1
+abline(a = intercept1, b = slope1, col = "red", lwd = 2)
+
+# Plot line 2
+abline(a = intercept2, b = slope2, col = "blue", lwd = 2)
+
+# Mark the intercept point
+points(intercept_x, intercept_y, col = "green", pch = 16, cex = 2)
+
+# Add a legend
+legend("topleft", legend = c("Line 1", "Line 2", "Intercept"), col = c("red", "blue", "green"), lty = 1, lwd = 2, pch = c(NA, NA, 16), cex = 0.8)
+
+```
+
+
+
+From the above trend lines and the summary, both day and night for the past ten years are trending **up**, with the day increasing at a faster rate than nigh time Shootings.
+
+## Step 4 
+## Addressing Bias
+
+Bias that might affect my approach:
+- There might be Bias in the data, how it's collected, what constatues a shooting (do you need multiple witnesses? )
+- I chose time and Boroughs as variables because I was interest to see if time of day and grouping had any correlation on occurrence. 
+- I'm not from a large city so I may not appreciate how many people may be working and traveling at night. 
+
+
+
